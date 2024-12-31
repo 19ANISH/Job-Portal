@@ -88,6 +88,7 @@ async def home(db: Session = Depends(get_db)):
 
     return {"company_details": result}
 @app.post("/add_admin")
+@requires_authentication
 async def admin_addition(data: login_data, db: db_dependency):
     try:
         hashed_password = generate_password_hash(data.password)
