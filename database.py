@@ -7,7 +7,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
 from db_models import admin, CompanyDetails
 
-uri = os.getenv("db_dev")
+uri = os.getenv("db")
 
 engine = create_engine(uri)
 
