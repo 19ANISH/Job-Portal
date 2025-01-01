@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from werkzeug.security import check_password_hash, generate_password_hash
 
 import db_models
-from database import SessionLocal
+from database import SessionLocal, create_tables
 from models.login_model import login_data, detailing, DataSetOut
 import uvicorn
 import os
@@ -17,7 +17,7 @@ load_dotenv()
 
 
 app = FastAPI()
-
+create_tables()
 SECRET_KEY = os.getenv("secret_key")  # Change this to a strong secret key
 ALGORITHM = os.getenv("algorithm")
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("access_token_expiry"))
@@ -69,27 +69,30 @@ def requires_authentication():
 
 #isactive or inactive function
 def is_active(company: db_models.CompanyDetails) -> bool:
-    # If inactive_date is None or it is in the future, it's still active
-    if company.inactive_date is None or company.inactive_date >= date.today():
+    # If deadline is None or it is in the future, it's still active
+    if company.deadline is None or company.deadline >= date.today():
         return True
     return False
 
 @app.post("/")
 async def home(db: Session = Depends(get_db)):
-    # Query all company details from the database
-    company_details = db.query(db_models.CompanyDetails).all()
+    try:
+        # Query all company details from the database
+        company_details = db.query(db_models.CompanyDetails).all()
 
-    # Filter active companies using the is_active function
-    active_companies = [company for company in company_details if is_active(company)]
+        # Filter active companies using the is_active function
+        active_companies = [company for company in company_details if is_active(company)]
 
-    # Convert the active result into a list of dictionaries (or any other serializable format)
-    result = [{"id": company.id, "company": company.company, "designation": company.designation,
-               "description": company.description, "image": company.image,"application": company.application} for company in active_companies]
+        # Convert the active result into a list of dictionaries (or any other serializable format)
+        result = [{"id": company.id, "companyName": company.companyName, "designation": company.designation,"location": company.location,
+                   "description": company.description, "image": company.image,"salary":company.salary,"deadline":company.deadline,"batch":company.batch,"applicationLink": company.applicationLink} for company in active_companies]
 
-    return {"company_details": result}
+        return DataSetOut(statuscode=200,data=result,message=None,error=None)
+    except Exception as e:
+        raise HTTPException(status_code=500,detail=str(e))
 @app.post("/add_admin")
-@requires_authentication
-async def admin_addition(data: login_data, db: db_dependency):
+@requires_authentication()
+async def admin_addition(token: str,data: login_data, db: db_dependency):
     try:
         hashed_password = generate_password_hash(data.password)
         data.password = hashed_password
@@ -125,7 +128,7 @@ async def login(creds: login_data, db: db_dependency):
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
 
-        return DataSetOut(status_code=200, details="Login successful", token=access_token)
+        return DataSetOut(statuscode=200, message="Login successful", data=access_token,error=None)
 
     raise HTTPException(status_code=403, detail="Wrong password")
 
@@ -137,40 +140,42 @@ async def update_details(company_id: int, token: str,company_data: detailing, db
             # Get the company record by ID
             company = db.query(db_models.CompanyDetails).filter(db_models.CompanyDetails.id == company_id).first()
             # print("company")
-            print(company)
+            # print(company)
             if not company:
                 raise HTTPException(status_code=404, detail="Company not found")
 
             # Update fields from company_data (no need to manually extract them)
-            # inactive_date = required_detail.inactive_date or (date.today() + timedelta(days=10))
-            company.company = company_data.company
+            # deadline = required_detail.deadline or (date.today() + timedelta(days=10))
+            company.companyName = company_data.companyName
             company.designation = company_data.designation
             company.description = company_data.description
             company.image = company_data.image
-            company.updated_date = company_data.updated_date
-            company.inactive_date = company_data.inactive_date or (date.today() + timedelta(days=10))
-            company.application = company_data.application
+            company.created = company_data.created
+            company.deadline = company_data.deadline or (date.today() + timedelta(days=10))
+            company.applicationLink = company_data.applicationLink
             company.salary = company_data.salary or ("NA")
             company.batch = company_data.batch
+            company.location = company_data.location
 
             # Commit the changes
             db.commit()
 
             data = {
-                "company": company_data.company,
+                "companyName": company_data.companyName,
                 "designation": company_data.designation,
                 "description": company_data.description,
-                "file_path": company_data.image,
-                "update_date": company_data.updated_date,
-                "inactive_data": company.inactive_date,
-                "application": company_data.application,
+                "image": company_data.image,
+                "created": company_data.created,
+                "deadline": company.deadline,
+                "applicationLink": company_data.applicationLink,
                 "salary": company.salary,
-                "batch": company_data.batch
+                "batch": company_data.batch,
+                "location": company_data.location
 
             }
 
             # Return the updated company details as response
-            return DataSetOut(status_code=200,details=data)
+            return DataSetOut(statuscode=200,data=data,message=None,error=None)
 
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -178,10 +183,10 @@ async def update_details(company_id: int, token: str,company_data: detailing, db
 @requires_authentication()
 async def upload_details(required_detail: detailing, db: db_dependency,token: str):
     try:
-        inactive_date = required_detail.inactive_date or (date.today() + timedelta(days=10))
+        deadline = required_detail.deadline or (date.today() + timedelta(days=10))
         salary = required_detail.salary or ("NA")
         # Create the db model object
-        required_detail.inactive_date = inactive_date
+        required_detail.deadline = deadline
         db_details = db_models.CompanyDetails(**required_detail.dict())
 
         # Add to the database
@@ -190,23 +195,24 @@ async def upload_details(required_detail: detailing, db: db_dependency,token: st
 
         # Prepare the response data
         data = {
-            "company": required_detail.company,
+            "companyName": required_detail.companyName,
             "designation": required_detail.designation,
             "description": required_detail.description,
-            "file_path": required_detail.image,
-            "updated_date": date.today(),
-            "inactive_date": inactive_date,
-            "application": required_detail.application,
+            "image": required_detail.image,
+            "created": date.today(),
+            "deadline": deadline,
+            "applicationLink": required_detail.applicationLink,
             "salary": salary,
-            "batch": required_detail.batch
+            "batch": required_detail.batch,
+            "location": required_detail.location
         }
 
         # Return the response with status code 200
-        return DataSetOut(status_code=200, details=data)
+        return DataSetOut(statuscode=200, data=data,message=None,error=None)
 
     except Exception as e:
         print(e)
         raise HTTPException(status_code=403, detail=str(e))
 if __name__ == '__main__':
     # app.run(host='0.0.0.0', port=5000)
-    uvicorn.run(app="main:app", host="0.0.0.0", port=5000, reload=True)
+    uvicorn.run(app="main:app", host="0.0.0.0", port=int(os.getenv("PORT")), reload=True)
