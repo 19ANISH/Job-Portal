@@ -4,19 +4,23 @@ from datetime import date
 
 class login_data(BaseModel):
     username: str
+    email: Union[str,None]
     password: str
 
 class detailing(BaseModel):
-    company: str
+    location: Union[str,None]
+    companyName: str
     designation: str
     description: str
     image: str
-    updated_date: Union[None,date]
-    inactive_date: Union[None,date]
-    application: str
+    created: Union[None,date]
+    deadline: Union[None,date]
+    applicationLink: str
     salary: Union[None,str]
     batch: Union[None,str]
 
 class DataSetOut(BaseModel):
-    status_code: int
-    details: Union[str,dict]
+    statuscode: int
+    data: Union[str,dict,list]
+    error: Union[str,None]
+    message: Union[str,None]
