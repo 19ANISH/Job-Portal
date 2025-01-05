@@ -26,19 +26,6 @@ ALGORITHM = os.getenv("algorithm")
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("access_token_expiry"))
 origins = [
     "http://localhost:5173",  # your frontend's URL
-    "https://jobsnearme.onrender.com/",  # allows requests from all origins, be careful with this in production
-]
- 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=origins,  # Can be set to ["*"] for all origins
-    allow_credentials=True,
-    allow_methods=["*"],  # Allows all HTTP methods
-    allow_headers=["*"],  # Allows all headers
-)
-
-origins = [
-    "http://localhost:5173",  # your frontend's URL
     "https://job-portal-ui-qifg.onrender.com",
 ]
 
