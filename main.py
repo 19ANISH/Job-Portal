@@ -27,7 +27,7 @@ ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("access_token_expiry"))
 origins = [
     "http://localhost:5173",  # your frontend's URL
     "https://job-portal-ui-qifg.onrender.com",
-    "https://jobs-nearme.web.app/"
+    "https://jobs-nearme.web.app"
 ]
 
 app.add_middleware(
