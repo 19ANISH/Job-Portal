@@ -13,6 +13,7 @@ from models.login_model import login_data, detailing, DataSetOut
 import uvicorn
 import os
 from dotenv import load_dotenv
+from starlette.middleware.cors import CORSMiddleware
 load_dotenv()
 
 
@@ -21,6 +22,18 @@ create_tables()
 SECRET_KEY = os.getenv("secret_key")  # Change this to a strong secret key
 ALGORITHM = os.getenv("algorithm")
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("access_token_expiry"))
+origins = [
+    "http://localhost:5173",  # your frontend's URL
+    "https://jobsnearme.onrender.com/",  # allows requests from all origins, be careful with this in production
+]
+ 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,  # Can be set to ["*"] for all origins
+    allow_credentials=True,
+    allow_methods=["*"],  # Allows all HTTP methods
+    allow_headers=["*"],  # Allows all headers
+)
 
 # Database dependency
 def get_db():
@@ -132,6 +145,28 @@ async def login(creds: login_data, db: db_dependency):
 
     raise HTTPException(status_code=403, detail="Wrong password")
 
+@app.get('/{company_id}')
+async def get_details(company_id : int, db: Session = Depends(get_db)):
+    try:
+        company_data = db.query(db_models.CompanyDetails).filter(db_models.CompanyDetails.id == company_id).first()
+        if not company_data:
+            raise HTTPException(status_code=404,detail="Company not found")
+        data = {
+                "companyName": company_data.companyName,
+                "designation": company_data.designation,
+                "description": company_data.description,
+                "image": company_data.image,
+                "created": company_data.created,
+                "deadline": company_data.deadline,
+                "applicationLink": company_data.applicationLink,
+                "salary": company_data.salary,
+                "batch": company_data.batch,
+                "location": company_data.location
+
+            }
+        return DataSetOut(statuscode=200,data=data,message='Successfully fetched the job', error=None)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.put("/update/{company_id}")
 @requires_authentication()
