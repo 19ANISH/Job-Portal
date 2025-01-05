@@ -20,7 +20,7 @@ class CompanyDetails(Base):
     location = Column(String(100), default="")
     companyName = Column(String(100))  # String with a max length of 100
     designation = Column(String(100))  # String with a max length of 100
-    description = Column(String(255))  # VARCHAR(255) for MySQL
+    description = Column(Text)  # VARCHAR(255) for MySQL
     image = Column(String(255))  # String with a max length of 255 (for image URLs or file names)
     created =  Column(DATE, default=func.current_date())  # Defaults to current date
     deadline = Column(DATE)  # This can be NULL
